@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 
+	"strconv"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
@@ -36,6 +38,36 @@ func CreateItem(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result.Value)
 }
 
+func UpdateItem(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, _ := strconv.Atoi(vars["id"])
+
+	exists := ItemExists(id)
+	if !exists {
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"updated": false, "error": "Record Not Found"}`)
+	} else {
+		completed, _ := strconv.ParseBool(r.FormValue("completed"))
+		log.WithFields(log.Fields{"Id": id, "Completed": completed}).Info("Updating TodoItem")
+		todo := &TodoItemModel{}
+		db.First(&todo, id)
+		todo.Completed = completed
+		db.Save(&todo)
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"updated": true}`)
+	}
+}
+
+func ItemExists(Id int) bool {
+	todo := &TodoItemModel{}
+	result := db.First(&todo, Id)
+	if result.Error != nil {
+		log.Warn("TodoItem not found in database")
+		return false
+	}
+	return true
+}
+
 func init() {
 	log.SetFormatter(&log.TextFormatter{})
 	log.SetReportCaller(true)
@@ -50,5 +82,6 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/healthz", Healthz).Methods("GET")
 	router.HandleFunc("/todo", CreateItem).Methods("POST")
+	router.HandleFunc("/todo/{id}", UpdateItem).Methods("POST")
 	http.ListenAndServe(":8000", router)
 }
