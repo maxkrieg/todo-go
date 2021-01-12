@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -132,5 +133,6 @@ func main() {
 	router.HandleFunc("/todos/incompleted", GetIncompleteItems).Methods("GET")
 	router.HandleFunc("/todos/{id}", UpdateItem).Methods("POST")
 	router.HandleFunc("/todos/{id}", DeleteItem).Methods("DELETE")
-	http.ListenAndServe(":8000", router)
+	handler := cors.New(cors.Options{AllowedMethods: []string{"GET", "POST", "DELETE", "PATCH", "OPTIONS"}}).Handler(router)
+	http.ListenAndServe(":8000", handler)
 }
